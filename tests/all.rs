@@ -1019,7 +1019,7 @@ fn writing_and_extracting_hard_link() {
     use std::env;
     use std::fs;
 
-    let td = t!(TempDir::new("tar-rs"));
+    let td = t!(TempDir::new());
     let base_dir = td.path().join("base");
     t!(fs::create_dir(&base_dir));
 
