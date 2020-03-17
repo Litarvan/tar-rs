@@ -1015,9 +1015,9 @@ fn tar_directory_containing_symlink_to_directory() {
 #[cfg(any(unix, target_os = "redox"))]
 #[test]
 fn writing_and_extracting_hard_link() {
-    use std::os::unix::prelude::*;
     use std::env;
     use std::fs;
+    use std::os::unix::prelude::*;
 
     let td = t!(TempDir::new());
     let base_dir = td.path().join("base");

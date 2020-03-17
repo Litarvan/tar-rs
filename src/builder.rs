@@ -5,11 +5,11 @@ use std::io::prelude::*;
 use std::path::Path;
 
 #[cfg(any(unix, target_os = "redox"))]
-use std::os::unix::prelude::*;
-#[cfg(any(unix, target_os = "redox"))]
-use std::collections::{HashMap, hash_map};
+use std::collections::{hash_map, HashMap};
 #[cfg(any(unix, target_os = "redox"))]
 use std::ffi::OsString;
+#[cfg(any(unix, target_os = "redox"))]
+use std::os::unix::prelude::*;
 
 use crate::header::{bytes2path, path2bytes, HeaderMode};
 use crate::{other, EntryType, Header};
@@ -40,7 +40,7 @@ impl PlatformSpecificData {
     #[cfg(any(unix, target_os = "redox"))]
     fn new() -> Self {
         PlatformSpecificData {
-            hl_info_map: HashMap::new()
+            hl_info_map: HashMap::new(),
         }
     }
 }
@@ -54,7 +54,7 @@ pub struct Builder<W: Write> {
     follow: bool,
     finished: bool,
     obj: Option<W>,
-    platform: PlatformSpecificData
+    platform: PlatformSpecificData,
 }
 
 impl<W: Write> Builder<W> {
@@ -235,7 +235,7 @@ impl<W: Write> Builder<W> {
             None,
             mode,
             follow,
-            &mut self.platform
+            &mut self.platform,
         )
     }
 
@@ -277,7 +277,7 @@ impl<W: Write> Builder<W> {
             Some(name.as_ref()),
             mode,
             follow,
-            &mut self.platform
+            &mut self.platform,
         )
     }
 
@@ -309,7 +309,13 @@ impl<W: Write> Builder<W> {
     /// ```
     pub fn append_file<P: AsRef<Path>>(&mut self, path: P, file: &mut fs::File) -> io::Result<()> {
         let mode = self.mode.clone();
-        append_file(self.obj.as_mut().unwrap(), path.as_ref(), file, mode, &mut self.platform)
+        append_file(
+            self.obj.as_mut().unwrap(),
+            path.as_ref(),
+            file,
+            mode,
+            &mut self.platform,
+        )
     }
 
     /// Adds a directory to this archive with the given path as the name of the
@@ -338,9 +344,9 @@ impl<W: Write> Builder<W> {
     /// ar.append_dir("bardir", ".").unwrap();
     /// ```
     pub fn append_dir<P, Q>(&mut self, path: P, src_path: Q) -> io::Result<()>
-        where
-            P: AsRef<Path>,
-            Q: AsRef<Path>,
+    where
+        P: AsRef<Path>,
+        Q: AsRef<Path>,
     {
         let mode = self.mode.clone();
         append_dir(
@@ -375,9 +381,9 @@ impl<W: Write> Builder<W> {
     /// ar.append_dir_all("bardir", ".").unwrap();
     /// ```
     pub fn append_dir_all<P, Q>(&mut self, path: P, src_path: Q) -> io::Result<()>
-        where
-            P: AsRef<Path>,
-            Q: AsRef<Path>,
+    where
+        P: AsRef<Path>,
+        Q: AsRef<Path>,
     {
         let mode = self.mode.clone();
         let follow = self.follow;
@@ -427,7 +433,7 @@ fn append_path_with_name(
     name: Option<&Path>,
     mode: HeaderMode,
     follow: bool,
-    platform: &mut PlatformSpecificData
+    platform: &mut PlatformSpecificData,
 ) -> io::Result<()> {
     let stat = if follow {
         fs::metadata(path).map_err(|err| {
@@ -453,7 +459,7 @@ fn append_path_with_name(
             &mut fs::File::open(path)?,
             mode,
             None,
-            platform
+            platform,
         )
     } else if stat.is_dir() {
         append_fs(dst, ar_name, &stat, &mut io::empty(), mode, None, platform)
@@ -478,7 +484,7 @@ fn append_file(
     path: &Path,
     file: &mut fs::File,
     mode: HeaderMode,
-    platform: &mut PlatformSpecificData
+    platform: &mut PlatformSpecificData,
 ) -> io::Result<()> {
     let stat = file.metadata()?;
     append_fs(dst, path, &stat, file, mode, None, platform)
@@ -489,7 +495,7 @@ fn append_dir(
     path: &Path,
     src_path: &Path,
     mode: HeaderMode,
-    platform: &mut PlatformSpecificData
+    platform: &mut PlatformSpecificData,
 ) -> io::Result<()> {
     let stat = fs::metadata(src_path)?;
     append_fs(dst, path, &stat, &mut io::empty(), mode, None, platform)
@@ -560,7 +566,7 @@ fn append_fs(
     read: &mut dyn Read,
     mode: HeaderMode,
     link_name: Option<&Path>,
-    platform: &mut PlatformSpecificData
+    platform: &mut PlatformSpecificData,
 ) -> io::Result<()> {
     let mut header = Header::new_gnu();
 
@@ -587,7 +593,7 @@ fn append_fs(
 fn check_for_hard_link<'a>(
     _: &Path,
     _: &fs::Metadata,
-    _: &'a mut PlatformSpecificData
+    _: &'a mut PlatformSpecificData,
 ) -> Option<&'a Path> {
     None
 }
@@ -596,12 +602,15 @@ fn check_for_hard_link<'a>(
 fn check_for_hard_link<'a>(
     path: &Path,
     meta: &fs::Metadata,
-    platform: &'a mut PlatformSpecificData
+    platform: &'a mut PlatformSpecificData,
 ) -> Option<&'a Path> {
     if meta.file_type().is_dir() || meta.nlink() <= 1 {
         return None;
     }
-    let hl_info = HardLinkInfo { dev: meta.dev(), ino: meta.ino() };
+    let hl_info = HardLinkInfo {
+        dev: meta.dev(),
+        ino: meta.ino(),
+    };
 
     // If the file has been written before.  Set the current file as hard link.
     // Else record this file as a HardLinkInfo.
@@ -609,7 +618,7 @@ fn check_for_hard_link<'a>(
         hash_map::Entry::Occupied(o) => {
             let name: &OsString = o.into_mut();
             Some(name.as_ref())
-        },
+        }
         hash_map::Entry::Vacant(v) => {
             let name = path.as_os_str().to_owned();
             v.insert(name);
@@ -624,7 +633,7 @@ fn append_dir_all(
     src_path: &Path,
     mode: HeaderMode,
     follow: bool,
-    platform: &mut PlatformSpecificData
+    platform: &mut PlatformSpecificData,
 ) -> io::Result<()> {
     let mut stack = vec![(src_path.to_path_buf(), true, false)];
     while let Some((src, is_dir, is_symlink)) = stack.pop() {
@@ -642,7 +651,15 @@ fn append_dir_all(
         } else if !follow && is_symlink {
             let stat = fs::symlink_metadata(&src)?;
             let link_name = fs::read_link(&src)?;
-            append_fs(dst, &dest, &stat, &mut io::empty(), mode, Some(&link_name), platform)?;
+            append_fs(
+                dst,
+                &dest,
+                &stat,
+                &mut io::empty(),
+                mode,
+                Some(&link_name),
+                platform,
+            )?;
         } else {
             append_file(dst, &dest, &mut fs::File::open(src)?, mode, platform)?;
         }
